@@ -16,57 +16,99 @@ export default function GameHeader({
   deckCount,
   discardCount,
 }) {
+  const timerDanger = roundStatus === "playing" && remainingSec != null && remainingSec <= 5;
+  const timerText =
+    roundStatus === "playing" && remainingSec != null ? `${remainingSec}s` : "-";
+
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-      <div>
-        <div>
-          <b>Room:</b> {codeShown}
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      {/* Left: room + you + round */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-white/60">Room</span>
+          <span className="rounded-full bg-black/30 border border-white/10 px-3 py-1 text-sm font-semibold tracking-[0.18em] uppercase">
+            {codeShown}
+          </span>
         </div>
-        <div>
-          <b>You:</b> {me ? `${me.name} (seat ${me.seat})` : "Not joined"}
+
+        <div className="text-sm text-white/80">
+          <span className="text-white/60">You</span>{" "}
+          <span className="font-semibold text-white">
+            {me ? `${me.name} (seat ${me.seat})` : "Not joined"}
+          </span>
         </div>
-        <div>
-          <b>Round:</b> {round} &nbsp; <b>Status:</b> {roundStatus}
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/80">
+          <div>
+            <span className="text-white/60">Round</span>{" "}
+            <span className="font-semibold text-white">{round}</span>
+          </div>
+          <div>
+            <span className="text-white/60">Status</span>{" "}
+            <span className="font-semibold text-white">{roundStatus}</span>
+          </div>
         </div>
-        <div style={{ marginTop: 4 }}>
-          <b>Turn timer:</b>{" "}
-          {roundStatus === "playing" && remainingSec != null ? (
-            <span style={{ fontWeight: 900, color: remainingSec <= 5 ? "crimson" : "inherit" }}>
-              {remainingSec}s
-            </span>
-          ) : (
-            "-"
-          )}
+
+        <div className="text-sm">
+          <span className="text-white/60">Turn timer</span>{" "}
+          <span
+            className={[
+              "font-extrabold tabular-nums",
+              timerDanger ? "text-rose-300" : "text-white",
+            ].join(" ")}
+          >
+            {timerText}
+          </span>
         </div>
       </div>
 
-      <div>
-        <div>
-          <b>Dealer seat:</b> {dealerSeat}
+      {/* Middle: dealer/turn/direction/pending */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div className="text-white/80">
+          <span className="text-white/60">Dealer seat</span>{" "}
+          <span className="font-semibold text-white">{dealerSeat}</span>
         </div>
-        <div>
-          <b>Turn seat:</b> {turnSeat ?? "-"} {isMyTurn ? "(YOU)" : ""}
+
+        <div className="text-white/80">
+          <span className="text-white/60">Direction</span>{" "}
+          <span className="font-semibold text-white">{direction === 1 ? "→" : "←"}</span>
         </div>
-        <div>
-          <b>Direction:</b> {direction === 1 ? "→" : "←"}
+
+        <div className="text-white/80">
+          <span className="text-white/60">Turn seat</span>{" "}
+          <span className="font-semibold text-white">
+            {turnSeat ?? "-"} {isMyTurn ? " (YOU)" : ""}
+          </span>
         </div>
-        <div>
-          <b>Pending draw:</b> {pending?.count || 0} {pending?.type ? `(${pending.type})` : ""}
+
+        <div className="text-white/80">
+          <span className="text-white/60">Pending draw</span>{" "}
+          <span className="font-semibold text-white">
+            {pending?.count || 0} {pending?.type ? `(${pending.type})` : ""}
+          </span>
         </div>
       </div>
 
-      <div>
-        <div>
-          <b>Top:</b> {topDisplay}
+      {/* Right: top/forced/deck/discard */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div className="text-white/80">
+          <span className="text-white/60">Top</span>{" "}
+          <span className="font-semibold text-white">{topDisplay}</span>
         </div>
-        <div>
-          <b>Forced suit:</b> {forcedSuit ? suitLabel(forcedSuit) : "-"}
+
+        <div className="text-white/80">
+          <span className="text-white/60">Forced suit</span>{" "}
+          <span className="font-semibold text-white">{forcedSuit ? suitLabel(forcedSuit) : "-"}</span>
         </div>
-        <div>
-          <b>Deck:</b> {deckCount}
+
+        <div className="text-white/80">
+          <span className="text-white/60">Deck</span>{" "}
+          <span className="font-semibold text-white">{deckCount}</span>
         </div>
-        <div>
-          <b>Discard:</b> {discardCount}
+
+        <div className="text-white/80">
+          <span className="text-white/60">Discard</span>{" "}
+          <span className="font-semibold text-white">{discardCount}</span>
         </div>
       </div>
     </div>

@@ -1,92 +1,81 @@
-import { suitLabel } from "../game/cards";
+import { Button, Panel } from "../ui/ui.jsx";
+
+const SUITS = [
+  { key: "S", label: "Spades", symbol: "♠", color: "#ffffff" },
+  { key: "H", label: "Hearts", symbol: "♥", color: "#fb7185" },
+  { key: "D", label: "Diamonds", symbol: "♦", color: "#fb7185" },
+  { key: "C", label: "Clubs", symbol: "♣", color: "#ffffff" },
+];
 
 export default function SuitModal({ open, value, onChange, onClose, onConfirm }) {
   if (!open) return null;
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        zIndex: 9999,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(420px, 100%)",
-          background: "white",
-          borderRadius: 16,
-          border: "1px solid #eee",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-          padding: 16,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
+      <button
+        className="absolute inset-0 bg-black/70"
+        onClick={onClose}
+        aria-label="Close modal"
+      />
+
+      <Panel className="relative w-full max-w-2xl p-6">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Choose a suit</div>
-            <div style={{ opacity: 0.75, marginTop: 4, fontSize: 13 }}>
+            <div className="text-2xl font-semibold">Choose a suit</div>
+            <div className="mt-1 text-sm text-white/70">
               Your 8 sets the forced suit for the next play.
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: "6px 10px", borderRadius: 10, border: "1px solid #ddd" }}>
+
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white/80 hover:bg-white/10"
+            aria-label="Close"
+            title="Close"
+          >
             ✕
           </button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 14 }}>
-          {["S", "H", "D", "C"].map((s) => {
-            const active = value === s;
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {SUITS.map((s) => {
+            const selected = value === s.key;
             return (
               <button
-                key={s}
-                onClick={() => onChange(s)}
-                style={{
-                  padding: "14px 10px",
-                  borderRadius: 14,
-                  border: active ? "2px solid #111" : "1px solid #ddd",
-                  background: active ? "#f3f3f3" : "white",
-                  fontWeight: 900,
-                  fontSize: 20,
-                  cursor: "pointer",
-                }}
-                title={s}
+                key={s.key}
+                onClick={() => onChange(s.key)}
+                className={[
+                  "rounded-3xl border px-4 py-6 text-center transition",
+                  "bg-white/5 hover:bg-white/10",
+                  selected ? "border-emerald-300/70 ring-4 ring-emerald-300/40" : "border-white/10",
+                ].join(" ")}
+                aria-label={s.label}
               >
-                {suitLabel(s)}
+                <div
+                  className="text-5xl font-black"
+                  style={{
+                    color: s.color,
+                    textShadow: "0 2px 10px rgba(0,0,0,0.45)",
+                  }}
+                >
+                  {s.symbol}
+                </div>
+                <div className="mt-2 text-sm text-white/75">{s.label}</div>
               </button>
             );
           })}
         </div>
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
-          <button
-            onClick={onClose}
-            style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid #ddd", background: "white" }}
-          >
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:items-center">
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-
-          <button
-            onClick={() => onConfirm(value)}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid #111",
-              background: "#111",
-              color: "white",
-              fontWeight: 800,
-            }}
-          >
-            Confirm {suitLabel(value)}
-          </button>
+          </Button>
+          <Button onClick={() => onConfirm(value)}>
+            Confirm {SUITS.find((s) => s.key === value)?.symbol ?? ""}
+          </Button>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { cardToString } from "../game/cards";
+import PlayingCard from "../ui/PlayingCard.jsx";
+import { Button, Panel, Badge } from "../ui/ui.jsx";
 
 export default function PreplayPanel({
   me,
@@ -10,61 +11,93 @@ export default function PreplayPanel({
   onOpenSuitModalForSevens,
   onBeginFirstTurn,
 }) {
+  const isDealer = Boolean(me) && me.seat === dealerSeat;
+  const canResolve = Boolean(me?.alive) && mySevens > 0;
+  const canBegin = Boolean(me) && isDealer && allAliveSevensResolved;
+
   return (
-    <div style={{ padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-      <div style={{ marginBottom: 8 }}>
-        <b>Pre-Round Phase:</b> Resolve any 7s manually by playing 7→8 before the first turn begins.
-      </div>
+    <Panel className="p-5">
+      <div className="flex flex-col gap-3">
+        {/* Header */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>Pre-Round</Badge>
+          <Badge>Seat {mySeat ?? "-"}</Badge>
+          <Badge>Sevens: {mySevens}</Badge>
+        </div>
 
-      <div style={{ marginTop: 10 }}>
-        <b>Your hand ({myHand.length})</b>
-        {!me?.alive && <div style={{ color: "crimson", marginTop: 6 }}>You are OUT this round.</div>}
+        <div className="text-sm text-white/80">
+          <span className="font-semibold text-white">Pre-Round Phase:</span>{" "}
+          Resolve any 7s manually by playing{" "}
+          <span className="font-semibold text-white">7 → 8</span> before the
+          first turn begins.
+        </div>
 
-        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {myHand.map((c, i) => (
-            <div
-              key={`${c.r}${c.s}${i}`}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #ccc",
-                background: "white",
-              }}
-            >
-              {cardToString(c)}
+        {!me?.alive ? (
+          <div className="text-sm text-rose-200 bg-rose-500/10 border border-rose-300/20 rounded-2xl px-4 py-3">
+            You are <span className="font-semibold">OUT</span> this round.
+          </div>
+        ) : null}
+
+        {/* Hand */}
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-semibold text-white">Your hand</div>
+            <Badge>{myHand.length} cards</Badge>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-3">
+            {myHand.map((c, i) => (
+              <PlayingCard
+                key={`${c.r}${c.s}${i}`}
+                card={c}
+                size="hand"
+              />
+            ))}
+
+            {myHand.length === 0 ? (
+              <div className="text-sm text-white/60">(empty)</div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Resolve sevens */}
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-white/75">
+            You must end preplay with{" "}
+            <span className="font-semibold text-white">0 sevens</span> in your
+            hand.
+          </div>
+
+          <Button onClick={onOpenSuitModalForSevens} disabled={!canResolve}>
+            Play 7 + 8 Save ({mySevens})
+          </Button>
+        </div>
+
+        {/* Ready status */}
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-semibold text-white">
+            Ready to begin?
+          </div>
+          {allAliveSevensResolved ? (
+            <Badge>✅ All sevens resolved</Badge>
+          ) : (
+            <Badge>⏳ Waiting on players</Badge>
+          )}
+        </div>
+
+        {/* Begin turn */}
+        <div>
+          <Button onClick={onBeginFirstTurn} disabled={!canBegin}>
+            Begin First Turn (Dealer)
+          </Button>
+
+          {!isDealer ? (
+            <div className="mt-2 text-xs text-white/55">
+              Only the dealer (seat {dealerSeat}) can begin the first turn.
             </div>
-          ))}
-          {myHand.length === 0 && <div>(empty)</div>}
+          ) : null}
         </div>
       </div>
-
-      <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <button
-          onClick={onOpenSuitModalForSevens}
-          style={{ padding: 10 }}
-          disabled={!me?.alive || mySevens === 0}
-        >
-          Play 7+8 Save ({mySevens} seven{mySevens === 1 ? "" : "s"})
-        </button>
-
-        <div style={{ fontSize: 13, opacity: 0.85 }}>
-          You must end preplay with <b>0 sevens</b> in your hand.
-        </div>
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <b>Ready to begin?</b> {allAliveSevensResolved ? "✅ All sevens resolved" : "⏳ Waiting on players"}
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <button
-          onClick={onBeginFirstTurn}
-          style={{ padding: 10 }}
-          disabled={!me || me.seat !== dealerSeat || !allAliveSevensResolved}
-        >
-          Begin First Turn (Dealer)
-        </button>
-      </div>
-    </div>
+    </Panel>
   );
 }
