@@ -459,6 +459,7 @@ export function useGameActions(ctx) {
   return {
     createRoom,
     joinRoom,
+    saveState,
     toggleReady,
     playCard,
     drawCards,
