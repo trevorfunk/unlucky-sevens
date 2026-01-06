@@ -7,6 +7,7 @@ import PreplayPanel from "./components/PreplayPanel";
 import Scoreboard from "./components/Scoreboard";
 import GameHeader from "./components/GameHeader";
 import SuitModal from "./components/SuitModal";
+import SettingsPanel from "./components/SettingsPanel";
 
 import { cardToString } from "./game/cards";
 import { countRank, normalizePending, playableCards, normalizeState } from "./game/rules";
@@ -16,6 +17,7 @@ import { useGameRoom } from "./hooks/useGameRoom";
 import { useRoundManager } from "./hooks/useRoundManager";
 
 import { Button, Panel, Badge } from "./ui/ui.jsx";
+import Toast from "./ui/Toast";
 
 /* =========================
    App
@@ -38,7 +40,7 @@ export default function App() {
   const [roomCode, setRoomCode] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
 
-  const { gameRow, setGameRow, state: roomState } = useGameRoom(roomCode);
+  const { setGameRow, state: roomState } = useGameRoom(roomCode);
   const state = normalizeState(roomState);
 
   const [chooseSuit, setChooseSuit] = useState("S");
@@ -51,6 +53,20 @@ export default function App() {
   // --- turn timer tick ---
   const [nowMs, setNowMs] = useState(Date.now());
   const timeoutHandledRef = useRef(null);
+
+  // --- toast ---
+  const [toast, setToast] = useState("");
+  const lastToastRef = useRef("");
+
+  // --- settings ---
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [bigTap, setBigTap] = useState(false);
+
+  // --- splash ---
+  const [started, setStarted] = useState(() => {
+    return localStorage.getItem("unlucky_sevens_started") === "true";
+  });  
 
   // Derived values
   const players = Array.isArray(state.players) ? state.players : [];
@@ -86,6 +102,28 @@ export default function App() {
     .sort((a, b) => a - b);
 
   const isMyTurn = mySeat !== null && turnSeat === mySeat && me?.alive;
+
+  // 🔔 Toast notifications (UI Fix #5)
+  useEffect(() => {
+    if (!roomCode) return;
+
+    let msg = "";
+
+    if (roundStatus === "playing" && isMyTurn) {
+      msg = "✅ Your turn";
+    } else if ((pending?.count || 0) > 0) {
+      msg = `⚠️ Pending pickup: ${pending.count}${pending.type ? ` (${pending.type})` : ""}`;
+    } else if (forcedSuit) {
+      msg = `🎴 Forced suit: ${forcedSuit}`;
+    }
+
+    if (!msg) return;
+
+    if (lastToastRef.current === msg) return;
+    lastToastRef.current = msg;
+
+    setToast(msg);
+  }, [roomCode, roundStatus, isMyTurn, pending, forcedSuit]);
 
   const myPlayable = useMemo(() => {
     return playableCards(myHand, topCard, forcedSuit, pending);
@@ -154,29 +192,35 @@ export default function App() {
     setPendingSuitAction(null);
   }
 
-  const { allReady, allAliveSevensResolved, startRound, preplayResolveMySevens, beginFirstTurn, continueToNextRound } =
-    useRoundManager({
-      players,
-      me,
-      mySeat,
-      myHand,
-      mySevens,
-      hands,
-      roundWins,
-      round,
-      roundStatus,
-      dealerSeat,
-      turnSeconds,
-      firstTurnSeat,
-      topCard,
-      discard,
-      chooseSuit,
-      direction,
-      aliveSeats,
-      roundResult,
-      actions,
-      setStatusMsg,
-    });
+  const {
+    allReady,
+    allAliveSevensResolved,
+    startRound,
+    preplayResolveMySevens,
+    beginFirstTurn,
+    continueToNextRound,
+  } = useRoundManager({
+    players,
+    me,
+    mySeat,
+    myHand,
+    mySevens,
+    hands,
+    roundWins,
+    round,
+    roundStatus,
+    dealerSeat,
+    turnSeconds,
+    firstTurnSeat,
+    topCard,
+    discard,
+    chooseSuit,
+    direction,
+    aliveSeats,
+    roundResult,
+    actions,
+    setStatusMsg,
+  });
 
   // Trigger timeout when it hits 0
   useEffect(() => {
@@ -204,6 +248,43 @@ export default function App() {
     roundResult?.winnerId ? players.find((p) => p.id === roundResult.winnerId)?.name || "Winner" : null;
 
   const showRoomUI = Boolean(roomCode);
+
+  // ✅ Splash / Landing screen
+  if (!started) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
+        <div className="w-full max-w-3xl">
+          <div className="rounded-[28px] border border-white/10 bg-white/5 p-8 sm:p-12 shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
+            <div className="text-center">
+              <div className="text-5xl sm:text-7xl font-extrabold tracking-tight">
+                Unlucky 7&apos;s
+              </div>
+
+              <div className="mt-3 text-sm sm:text-base text-white/70">
+                Created by the Hulsmans Bros
+              </div>
+
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={() => {
+    localStorage.setItem("unlucky_sevens_started", "true");
+    setStarted(true);
+  }}
+                  className="rounded-2xl px-6 py-3 text-base font-semibold border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15 transition"
+                >
+                  Play
+                </button>
+              </div>
+
+              <div className="mt-6 text-xs text-white/50">
+                Tip: Create a room, share the code, and join from another device.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -284,9 +365,21 @@ export default function App() {
               discardCount={discard.length}
             />
 
+            <div className="mt-4">
+              <SettingsPanel
+                reduceMotion={reduceMotion}
+                setReduceMotion={setReduceMotion}
+                soundOn={soundOn}
+                setSoundOn={setSoundOn}
+                bigTap={bigTap}
+                setBigTap={setBigTap}
+              />
+            </div>
+
             {state.lastEvent ? (
               <div className="mt-3 text-sm text-white/80">
-                <span className="text-white/60">Event:</span> <span className="font-medium">{state.lastEvent}</span>
+                <span className="text-white/60">Event:</span>{" "}
+                <span className="font-medium">{state.lastEvent}</span>
               </div>
             ) : null}
           </Panel>
@@ -295,22 +388,20 @@ export default function App() {
             <Scoreboard players={players} roundWins={roundWins} />
           </Panel>
 
-          <Panel className="p-5">
+          {/* PublicTable already includes its own Panel */}
           <PublicTable
-  players={players}
-  hands={hands}
-  turnSeat={turnSeat}
-  roundStatus={roundStatus}
-  pending={pending}
-  topDisplay={topDisplay}
-  topCard={topCard}
-  forcedSuit={forcedSuit}
-  direction={direction}
-  dealerSeat={dealerSeat}
-  myId={myId}
-/>
-
-          </Panel>
+            players={players}
+            hands={hands}
+            turnSeat={turnSeat}
+            roundStatus={roundStatus}
+            pending={pending}
+            topDisplay={topDisplay}
+            topCard={topCard}
+            forcedSuit={forcedSuit}
+            direction={direction}
+            dealerSeat={dealerSeat}
+            myId={myId}
+          />
 
           {/* Round finished */}
           {roundStatus === "finished_round" ? (
@@ -325,51 +416,48 @@ export default function App() {
             </Panel>
           ) : null}
 
-          {/* Lobby */}
+          {/* LobbyControls already includes its own Panel */}
           {roundStatus === "lobby" ? (
-            <Panel className="p-5">
-              <LobbyControls
-                me={me}
-                dealerSeat={dealerSeat}
-                allReady={allReady}
-                readyCount={readyCount}
-                playerCount={players.length}
-                onToggleReady={actions.toggleReady}
-                onStartRound={startRound}
-              />
-            </Panel>
+            <LobbyControls
+              me={me}
+              dealerSeat={dealerSeat}
+              allReady={allReady}
+              readyCount={readyCount}
+              playerCount={players.length}
+              onToggleReady={actions.toggleReady}
+              onStartRound={startRound}
+              players={players}
+            />
           ) : null}
 
-          {/* Preplay */}
+          {/* PreplayPanel already includes its own Panel */}
           {roundStatus === "preplay" ? (
-            <Panel className="p-5">
-              <PreplayPanel
-                me={me}
-                myHand={myHand}
-                mySeat={mySeat}
-                mySevens={mySevens}
-                allAliveSevensResolved={allAliveSevensResolved}
-                dealerSeat={dealerSeat}
-                onOpenSuitModalForSevens={() => openSuitModal({ kind: "preplaySevens" })}
-                onBeginFirstTurn={beginFirstTurn}
-              />
-            </Panel>
+            <PreplayPanel
+              me={me}
+              myHand={myHand}
+              mySeat={mySeat}
+              mySevens={mySevens}
+              allAliveSevensResolved={allAliveSevensResolved}
+              dealerSeat={dealerSeat}
+              onOpenSuitModalForSevens={() => openSuitModal({ kind: "preplaySevens" })}
+              onBeginFirstTurn={beginFirstTurn}
+            />
           ) : null}
 
-          {/* Playing */}
+          {/* PlayerHand already includes its own Panel */}
           {roundStatus === "playing" ? (
-            <Panel className="p-5">
-              <PlayerHand
-                me={me}
-                isMyTurn={isMyTurn}
-                myHand={myHand}
-                myPlayable={myPlayable}
-                pending={pending}
-                onPlayCard={(c) => actions.playCard(c)}
-                onPlayEight={(c) => openSuitModal({ kind: "play8", card: c })}
-                onDraw={() => actions.drawCards()}
-              />
-            </Panel>
+            <PlayerHand
+              me={me}
+              isMyTurn={isMyTurn}
+              myHand={myHand}
+              myPlayable={myPlayable}
+              pending={pending}
+              onPlayCard={(c) => actions.playCard(c)}
+              onPlayEight={(c) => openSuitModal({ kind: "play8", card: c })}
+              onDraw={() => actions.drawCards()}
+              reduceMotion={reduceMotion}
+              bigTap={bigTap}
+            />
           ) : null}
 
           {/* Match finished */}
@@ -407,6 +495,8 @@ export default function App() {
           />
         </div>
       ) : null}
+
+      <Toast message={toast} onClose={() => setToast("")} />
     </div>
   );
 }
