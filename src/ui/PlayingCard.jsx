@@ -28,9 +28,9 @@ export default function PlayingCard({
   const r = rankLabel(card?.r);
 
   const dims =
-    size === "table"
-      ? "h-56 w-40 sm:h-60 sm:w-44"
-      : "h-36 w-26 sm:h-40 sm:w-28";
+  size === "table"
+    ? "h-52 w-36 sm:h-60 sm:w-44"
+    : "h-28 w-20 sm:h-40 sm:w-28";
 
   // Strong readability on all suit/rank text
   const pipStyle = {
@@ -44,7 +44,7 @@ export default function PlayingCard({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "relative rounded-[22px] border transition select-none",
+        "relative rounded-[16px] sm:rounded-[22px] border transition select-none",
         dims,
         disabled ? "cursor-not-allowed opacity-90" : "cursor-pointer",
         faceDown
@@ -64,13 +64,13 @@ export default function PlayingCard({
         <>
           {/* Top-left */}
           <div
-            className="absolute left-3 top-3 text-base font-extrabold"
+            className="absolute left-2 top-2 text-sm sm:text-base font-extrabold"
             style={pipStyle}
           >
             {r}
           </div>
           <div
-            className="absolute left-3 top-8 text-2xl leading-none"
+            className="absolute left-2 top-6 text-xl sm:text-2xl leading-none"
             style={pipStyle}
           >
             {s.symbol}
@@ -78,13 +78,13 @@ export default function PlayingCard({
 
           {/* Bottom-right (rotated) */}
           <div
-            className="absolute right-3 bottom-3 text-base font-extrabold rotate-180"
+            className="absolute right-2 bottom-2 text-sm sm:text-base font-extrabold rotate-180"
             style={pipStyle}
           >
             {r}
           </div>
           <div
-            className="absolute right-3 bottom-8 text-2xl leading-none rotate-180"
+            className="absolute right-2 bottom-6 text-xl sm:text-2xl leading-none rotate-180"
             style={pipStyle}
           >
             {s.symbol}
@@ -92,7 +92,7 @@ export default function PlayingCard({
 
           {/* Center suit */}
           <div
-            className="absolute inset-0 flex items-center justify-center text-6xl"
+            className="absolute inset-0 flex items-center justify-center text-5xl sm:text-6xl"
             style={{ ...pipStyle, opacity: 0.95 }}
           >
             {s.symbol}

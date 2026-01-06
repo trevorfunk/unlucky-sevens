@@ -19,10 +19,6 @@ import { useRoundManager } from "./hooks/useRoundManager";
 import { Button, Panel, Badge } from "./ui/ui.jsx";
 import Toast from "./ui/Toast";
 
-/* =========================
-   App
-   ========================= */
-
 export default function App() {
   const TURN_SECONDS = 20;
 
@@ -105,6 +101,9 @@ export default function App() {
     .sort((a, b) => a - b);
 
   const isMyTurn = mySeat !== null && turnSeat === mySeat && me?.alive;
+
+  // Treat preplay + playing as "in game" for layout purposes
+  const inGame = roundStatus === "playing" || roundStatus === "preplay";
 
   // 🔔 Toast notifications
   useEffect(() => {
@@ -238,10 +237,6 @@ export default function App() {
     }
   }, [roundStatus, isMyTurn, remainingSec, state.turnStartedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* =========================
-     UI
-     ========================= */
-
   const codeShown = roomCode.toUpperCase();
   const topDisplay = topCard ? cardToString(topCard) : "-";
   const readyCount = players.filter((p) => p.ready).length;
@@ -251,20 +246,14 @@ export default function App() {
 
   const showRoomUI = Boolean(roomCode);
 
-  // ✅ Splash / Landing screen
   if (!started) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
         <div className="w-full max-w-3xl">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-8 sm:p-12 shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
             <div className="text-center">
-              <div className="text-5xl sm:text-7xl font-extrabold tracking-tight">
-                Unlucky 7&apos;s
-              </div>
-
-              <div className="mt-3 text-sm sm:text-base text-white/70">
-                Created by the Hulsmans Bros
-              </div>
+              <div className="text-5xl sm:text-7xl font-extrabold tracking-tight">Unlucky 7&apos;s</div>
+              <div className="mt-3 text-sm sm:text-base text-white/70">Created by the Hulsmans Bros</div>
 
               <div className="mt-8 flex justify-center">
                 <button
@@ -290,14 +279,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      <div className="mx-auto w-full max-w-5xl px-3 sm:px-6 py-4 sm:py-6 pb-28">
+      {/* Mobile-only extra bottom padding while in-game (preplay/playing) */}
+      <div className={`mx-auto w-full max-w-5xl px-3 sm:px-6 py-4 sm:py-6 ${inGame ? "pb-44 sm:pb-10" : "pb-10"}`}>
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-2xl font-semibold tracking-tight">Unlucky Sevens</div>
-            <div className="mt-1 text-sm text-white/70">
-              {showRoomUI ? "In room" : "Create or join a room to start"}
-            </div>
+            <div className="mt-1 text-sm text-white/70">{showRoomUI ? "In room" : "Create or join a room to start"}</div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -305,22 +293,16 @@ export default function App() {
             <Badge>Round: {round}</Badge>
             <Badge>Status: {roundStatus}</Badge>
 
-            {/* Menu button (works great on mobile) */}
-            <Button
-              variant="secondary"
-              onClick={() => setMenuOpen((v) => !v)}
-              className="sm:ml-2"
-            >
+            <Button variant="secondary" onClick={() => setMenuOpen((v) => !v)} className="sm:ml-2">
               {menuOpen ? "Close Menu" : "Menu"}
             </Button>
           </div>
         </div>
 
-        {/* Dropdown Menu (contains Join + Settings) */}
+        {/* Dropdown Menu */}
         {menuOpen ? (
           <Panel className="mt-4 p-5">
             <div className="grid gap-4">
-              {/* Your name */}
               <label className="grid gap-1">
                 <span className="text-xs text-white/70">Your name</span>
                 <input
@@ -331,7 +313,6 @@ export default function App() {
                 />
               </label>
 
-              {/* Room code */}
               <label className="grid gap-1">
                 <span className="text-xs text-white/70">Room code</span>
                 <input
@@ -342,7 +323,6 @@ export default function App() {
                 />
               </label>
 
-              {/* Buttons */}
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={() => {
@@ -363,18 +343,14 @@ export default function App() {
                 </Button>
               </div>
 
-              {/* Status block */}
               {statusMsg ? (
                 <div className="rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
                   {statusMsg}
                 </div>
               ) : (
-                <div className="text-xs text-white/55">
-                  Tip: Create a room, share the code, and your friends join with it.
-                </div>
+                <div className="text-xs text-white/55">Tip: Create a room, share the code, and your friends join with it.</div>
               )}
 
-              {/* Settings block */}
               <SettingsPanel
                 reduceMotion={reduceMotion}
                 setReduceMotion={setReduceMotion}
@@ -390,35 +366,71 @@ export default function App() {
         {/* Room UI */}
         {roomCode ? (
           <div className="mt-6 grid gap-4">
-            <Panel className="p-5">
-              <GameHeader
-                codeShown={codeShown}
-                me={me}
-                round={round}
-                roundStatus={roundStatus}
-                remainingSec={remainingSec}
-                dealerSeat={dealerSeat}
-                turnSeat={turnSeat}
-                isMyTurn={isMyTurn}
-                direction={direction}
-                pending={pending}
-                topDisplay={topDisplay}
-                forcedSuit={forcedSuit}
-                deckCount={deck.length}
-                discardCount={discard.length}
-              />
+            {/* Hide these panels on small screens while in-game */}
+            {!inGame ? (
+              <Panel className="p-5">
+                <GameHeader
+                  codeShown={codeShown}
+                  me={me}
+                  round={round}
+                  roundStatus={roundStatus}
+                  remainingSec={remainingSec}
+                  dealerSeat={dealerSeat}
+                  turnSeat={turnSeat}
+                  isMyTurn={isMyTurn}
+                  direction={direction}
+                  pending={pending}
+                  topDisplay={topDisplay}
+                  forcedSuit={forcedSuit}
+                  deckCount={deck.length}
+                  discardCount={discard.length}
+                />
 
-              {state.lastEvent ? (
-                <div className="mt-3 text-sm text-white/80">
-                  <span className="text-white/60">Event:</span>{" "}
-                  <span className="font-medium">{state.lastEvent}</span>
-                </div>
-              ) : null}
-            </Panel>
+                {state.lastEvent ? (
+                  <div className="mt-3 text-sm text-white/80">
+                    <span className="text-white/60">Event:</span> <span className="font-medium">{state.lastEvent}</span>
+                  </div>
+                ) : null}
+              </Panel>
+            ) : (
+              <div className="hidden sm:block">
+                <Panel className="p-5">
+                  <GameHeader
+                    codeShown={codeShown}
+                    me={me}
+                    round={round}
+                    roundStatus={roundStatus}
+                    remainingSec={remainingSec}
+                    dealerSeat={dealerSeat}
+                    turnSeat={turnSeat}
+                    isMyTurn={isMyTurn}
+                    direction={direction}
+                    pending={pending}
+                    topDisplay={topDisplay}
+                    forcedSuit={forcedSuit}
+                    deckCount={deck.length}
+                    discardCount={discard.length}
+                  />
+                  {state.lastEvent ? (
+                    <div className="mt-3 text-sm text-white/80">
+                      <span className="text-white/60">Event:</span> <span className="font-medium">{state.lastEvent}</span>
+                    </div>
+                  ) : null}
+                </Panel>
+              </div>
+            )}
 
-            <Panel className="p-5">
-              <Scoreboard players={players} roundWins={roundWins} />
-            </Panel>
+            {!inGame ? (
+              <Panel className="p-5">
+                <Scoreboard players={players} roundWins={roundWins} />
+              </Panel>
+            ) : (
+              <div className="hidden sm:block">
+                <Panel className="p-5">
+                  <Scoreboard players={players} roundWins={roundWins} />
+                </Panel>
+              </div>
+            )}
 
             <PublicTable
               players={players}
@@ -434,12 +446,10 @@ export default function App() {
               myId={myId}
             />
 
-            {/* Round finished */}
             {roundStatus === "finished_round" ? (
               <Panel className="p-5">
                 <div className="text-sm text-white/80">
-                  <span className="font-semibold">Round finished.</span>{" "}
-                  {winnerName ? `Winner: ${winnerName}` : "It was a draw."}
+                  <span className="font-semibold">Round finished.</span> {winnerName ? `Winner: ${winnerName}` : "It was a draw."}
                 </div>
                 <div className="mt-3">
                   <Button onClick={continueToNextRound}>Continue / Next Round</Button>
@@ -447,7 +457,6 @@ export default function App() {
               </Panel>
             ) : null}
 
-            {/* Lobby */}
             {roundStatus === "lobby" ? (
               <LobbyControls
                 me={me}
@@ -461,7 +470,6 @@ export default function App() {
               />
             ) : null}
 
-            {/* Preplay */}
             {roundStatus === "preplay" ? (
               <PreplayPanel
                 me={me}
@@ -475,7 +483,6 @@ export default function App() {
               />
             ) : null}
 
-            {/* Playing */}
             {roundStatus === "playing" ? (
               <PlayerHand
                 me={me}
@@ -491,7 +498,6 @@ export default function App() {
               />
             ) : null}
 
-            {/* Match finished */}
             {roundStatus === "finished_match" ? (
               <Panel className="p-5">
                 <div className="text-sm text-white/80">
@@ -500,7 +506,6 @@ export default function App() {
               </Panel>
             ) : null}
 
-            {/* --- Suit chooser modal --- */}
             <SuitModal
               open={suitModalOpen}
               value={suitModalValue}

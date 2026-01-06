@@ -1,4 +1,5 @@
 import { suitLabel } from "../game/cards";
+import { Badge, Panel } from "../ui/ui.jsx";
 
 export default function GameHeader({
   codeShown,
@@ -16,101 +17,106 @@ export default function GameHeader({
   deckCount,
   discardCount,
 }) {
-  const timerDanger = roundStatus === "playing" && remainingSec != null && remainingSec <= 5;
-  const timerText =
-    roundStatus === "playing" && remainingSec != null ? `${remainingSec}s` : "-";
+  const playing = roundStatus === "playing";
+  const timerDanger = playing && remainingSec != null && remainingSec <= 5;
+
+  const pendingCount = pending?.count || 0;
+  const hasPending = pendingCount > 0;
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-      {/* Left: room + you + round */}
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
+      {/* Top row: room + key status */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-white/60">Room</span>
+            <span className="rounded-full bg-black/30 border border-white/10 px-3 py-1 text-sm font-semibold tracking-[0.18em] uppercase">
+              {codeShown}
+            </span>
+            <Badge>Round {round}</Badge>
+            <Badge>Status: {roundStatus}</Badge>
+          </div>
+
+          <div className="text-sm text-white/80">
+            <span className="text-white/60">You</span>{" "}
+            <span className="font-semibold text-white">
+              {me ? `${me.name} (seat ${me.seat})` : "Not joined"}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>Dealer: seat {dealerSeat}</Badge>
+            <Badge>
+              Direction: {direction === 1 ? "→" : "←"}
+            </Badge>
+            <Badge>
+              Turn: {turnSeat ?? "-"} {isMyTurn ? "(YOU)" : ""}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Right side: timer + counts */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-white/60">Room</span>
-          <span className="rounded-full bg-black/30 border border-white/10 px-3 py-1 text-sm font-semibold tracking-[0.18em] uppercase">
-            {codeShown}
-          </span>
-        </div>
+          <Badge>
+            Deck: {deckCount}
+          </Badge>
+          <Badge>
+            Discard: {discardCount}
+          </Badge>
+          <Badge>
+            Top: {topDisplay}
+          </Badge>
 
-        <div className="text-sm text-white/80">
-          <span className="text-white/60">You</span>{" "}
-          <span className="font-semibold text-white">
-            {me ? `${me.name} (seat ${me.seat})` : "Not joined"}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/80">
-          <div>
-            <span className="text-white/60">Round</span>{" "}
-            <span className="font-semibold text-white">{round}</span>
-          </div>
-          <div>
-            <span className="text-white/60">Status</span>{" "}
-            <span className="font-semibold text-white">{roundStatus}</span>
-          </div>
-        </div>
-
-        <div className="text-sm">
-          <span className="text-white/60">Turn timer</span>{" "}
           <span
             className={[
-              "font-extrabold tabular-nums",
-              timerDanger ? "text-rose-300" : "text-white",
+              "rounded-full border px-3 py-1 text-sm font-extrabold tabular-nums",
+              "bg-black/30",
+              timerDanger ? "border-rose-300/40 text-rose-200" : "border-white/10 text-white",
             ].join(" ")}
+            title="Turn timer"
           >
-            {timerText}
+            {playing && remainingSec != null ? `${remainingSec}s` : "—"}
           </span>
         </div>
       </div>
 
-      {/* Middle: dealer/turn/direction/pending */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        <div className="text-white/80">
-          <span className="text-white/60">Dealer seat</span>{" "}
-          <span className="font-semibold text-white">{dealerSeat}</span>
-        </div>
+      {/* Big turn banner */}
+      {playing ? (
+        <Panel
+          className={[
+            "p-4",
+            isMyTurn
+              ? "border-emerald-300/30 bg-emerald-400/10"
+              : "border-white/10 bg-white/5",
+          ].join(" ")}
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-base font-semibold">
+              {isMyTurn ? (
+                <span className="text-emerald-200">✅ Your turn — play a card or pick up</span>
+              ) : (
+                <span className="text-white/80">⏳ Waiting for other player…</span>
+              )}
+            </div>
 
-        <div className="text-white/80">
-          <span className="text-white/60">Direction</span>{" "}
-          <span className="font-semibold text-white">{direction === 1 ? "→" : "←"}</span>
-        </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {forcedSuit ? (
+                <Badge>Forced suit: {suitLabel(forcedSuit)}</Badge>
+              ) : (
+                <Badge>Forced suit: —</Badge>
+              )}
 
-        <div className="text-white/80">
-          <span className="text-white/60">Turn seat</span>{" "}
-          <span className="font-semibold text-white">
-            {turnSeat ?? "-"} {isMyTurn ? " (YOU)" : ""}
-          </span>
-        </div>
-
-        <div className="text-white/80">
-          <span className="text-white/60">Pending draw</span>{" "}
-          <span className="font-semibold text-white">
-            {pending?.count || 0} {pending?.type ? `(${pending.type})` : ""}
-          </span>
-        </div>
-      </div>
-
-      {/* Right: top/forced/deck/discard */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        <div className="text-white/80">
-          <span className="text-white/60">Top</span>{" "}
-          <span className="font-semibold text-white">{topDisplay}</span>
-        </div>
-
-        <div className="text-white/80">
-          <span className="text-white/60">Forced suit</span>{" "}
-          <span className="font-semibold text-white">{forcedSuit ? suitLabel(forcedSuit) : "-"}</span>
-        </div>
-
-        <div className="text-white/80">
-          <span className="text-white/60">Deck</span>{" "}
-          <span className="font-semibold text-white">{deckCount}</span>
-        </div>
-
-        <div className="text-white/80">
-          <span className="text-white/60">Discard</span>{" "}
-          <span className="font-semibold text-white">{discardCount}</span>
-        </div>
-      </div>
+              {hasPending ? (
+                <Badge>
+                  Pending pickup: {pendingCount} {pending?.type ? `(${pending.type})` : ""}
+                </Badge>
+              ) : (
+                <Badge>No pending pickup</Badge>
+              )}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
     </div>
   );
 }
