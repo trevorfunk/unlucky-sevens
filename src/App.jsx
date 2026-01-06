@@ -63,10 +63,13 @@ export default function App() {
   const [soundOn, setSoundOn] = useState(true);
   const [bigTap, setBigTap] = useState(false);
 
-  // --- splash ---
+  // --- splash (persistent) ---
   const [started, setStarted] = useState(() => {
     return localStorage.getItem("unlucky_sevens_started") === "true";
-  });  
+  });
+
+  // --- mobile dropdown menu ---
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Derived values
   const players = Array.isArray(state.players) ? state.players : [];
@@ -103,7 +106,7 @@ export default function App() {
 
   const isMyTurn = mySeat !== null && turnSeat === mySeat && me?.alive;
 
-  // 🔔 Toast notifications (UI Fix #5)
+  // 🔔 Toast notifications
   useEffect(() => {
     if (!roomCode) return;
 
@@ -118,7 +121,6 @@ export default function App() {
     }
 
     if (!msg) return;
-
     if (lastToastRef.current === msg) return;
     lastToastRef.current = msg;
 
@@ -267,9 +269,9 @@ export default function App() {
               <div className="mt-8 flex justify-center">
                 <button
                   onClick={() => {
-    localStorage.setItem("unlucky_sevens_started", "true");
-    setStarted(true);
-  }}
+                    localStorage.setItem("unlucky_sevens_started", "true");
+                    setStarted(true);
+                  }}
                   className="rounded-2xl px-6 py-3 text-base font-semibold border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15 transition"
                 >
                   Play
@@ -287,85 +289,92 @@ export default function App() {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="text-2xl font-semibold tracking-tight">Unlucky Sevens</div>
-          <div className="mt-1 text-sm text-white/70">
-            {showRoomUI ? "In room" : "Create or join a room to start"}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge>Players: {players.length}</Badge>
-          <Badge>Round: {round}</Badge>
-          <Badge>Status: {roundStatus}</Badge>
-        </div>
-      </div>
-
-      {/* Lobby / Join */}
-      <Panel className="mt-6 p-5">
-        <div className="grid gap-3">
-          <label className="grid gap-1">
-            <span className="text-xs text-white/70">Your name</span>
-            <input
-              className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/35 outline-none focus:ring-2 focus:ring-emerald-300/50"
-              placeholder="Trevor"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2">
-            <div className="flex-1">
-              <div className="text-xs text-white/70 mb-1">Room code</div>
-              <input
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/35 tracking-[0.25em] uppercase outline-none focus:ring-2 focus:ring-emerald-300/50"
-                placeholder="AB12"
-                value={codeShown}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              />
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              <Button onClick={actions.createRoom}>Create Room</Button>
-              <Button variant="secondary" onClick={actions.joinRoom}>
-                Join Room
-              </Button>
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="mx-auto w-full max-w-5xl px-3 sm:px-6 py-4 sm:py-6 pb-28">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-2xl font-semibold tracking-tight">Unlucky Sevens</div>
+            <div className="mt-1 text-sm text-white/70">
+              {showRoomUI ? "In room" : "Create or join a room to start"}
             </div>
           </div>
 
-          {statusMsg ? (
-            <div className="rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-              {statusMsg}
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>Players: {players.length}</Badge>
+            <Badge>Round: {round}</Badge>
+            <Badge>Status: {roundStatus}</Badge>
+
+            {/* Menu button (works great on mobile) */}
+            <Button
+              variant="secondary"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="sm:ml-2"
+            >
+              {menuOpen ? "Close Menu" : "Menu"}
+            </Button>
+          </div>
         </div>
-      </Panel>
 
-      {/* Room UI */}
-      {roomCode ? (
-        <div className="mt-6 grid gap-4">
-          <Panel className="p-5">
-            <GameHeader
-              codeShown={codeShown}
-              me={me}
-              round={round}
-              roundStatus={roundStatus}
-              remainingSec={remainingSec}
-              dealerSeat={dealerSeat}
-              turnSeat={turnSeat}
-              isMyTurn={isMyTurn}
-              direction={direction}
-              pending={pending}
-              topDisplay={topDisplay}
-              forcedSuit={forcedSuit}
-              deckCount={deck.length}
-              discardCount={discard.length}
-            />
+        {/* Dropdown Menu (contains Join + Settings) */}
+        {menuOpen ? (
+          <Panel className="mt-4 p-5">
+            <div className="grid gap-4">
+              {/* Your name */}
+              <label className="grid gap-1">
+                <span className="text-xs text-white/70">Your name</span>
+                <input
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/35 outline-none focus:ring-2 focus:ring-emerald-300/50"
+                  placeholder="Trevor"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
 
-            <div className="mt-4">
+              {/* Room code */}
+              <label className="grid gap-1">
+                <span className="text-xs text-white/70">Room code</span>
+                <input
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/35 tracking-[0.25em] uppercase outline-none focus:ring-2 focus:ring-emerald-300/50"
+                  placeholder="AB12"
+                  value={codeShown}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                />
+              </label>
+
+              {/* Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => {
+                    actions.createRoom();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Create Room
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    actions.joinRoom();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Join Room
+                </Button>
+              </div>
+
+              {/* Status block */}
+              {statusMsg ? (
+                <div className="rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                  {statusMsg}
+                </div>
+              ) : (
+                <div className="text-xs text-white/55">
+                  Tip: Create a room, share the code, and your friends join with it.
+                </div>
+              )}
+
+              {/* Settings block */}
               <SettingsPanel
                 reduceMotion={reduceMotion}
                 setReduceMotion={setReduceMotion}
@@ -375,128 +384,151 @@ export default function App() {
                 setBigTap={setBigTap}
               />
             </div>
-
-            {state.lastEvent ? (
-              <div className="mt-3 text-sm text-white/80">
-                <span className="text-white/60">Event:</span>{" "}
-                <span className="font-medium">{state.lastEvent}</span>
-              </div>
-            ) : null}
           </Panel>
+        ) : null}
 
-          <Panel className="p-5">
-            <Scoreboard players={players} roundWins={roundWins} />
-          </Panel>
-
-          {/* PublicTable already includes its own Panel */}
-          <PublicTable
-            players={players}
-            hands={hands}
-            turnSeat={turnSeat}
-            roundStatus={roundStatus}
-            pending={pending}
-            topDisplay={topDisplay}
-            topCard={topCard}
-            forcedSuit={forcedSuit}
-            direction={direction}
-            dealerSeat={dealerSeat}
-            myId={myId}
-          />
-
-          {/* Round finished */}
-          {roundStatus === "finished_round" ? (
+        {/* Room UI */}
+        {roomCode ? (
+          <div className="mt-6 grid gap-4">
             <Panel className="p-5">
-              <div className="text-sm text-white/80">
-                <span className="font-semibold">Round finished.</span>{" "}
-                {winnerName ? `Winner: ${winnerName}` : "It was a draw."}
-              </div>
-              <div className="mt-3">
-                <Button onClick={continueToNextRound}>Continue / Next Round</Button>
-              </div>
-            </Panel>
-          ) : null}
+              <GameHeader
+                codeShown={codeShown}
+                me={me}
+                round={round}
+                roundStatus={roundStatus}
+                remainingSec={remainingSec}
+                dealerSeat={dealerSeat}
+                turnSeat={turnSeat}
+                isMyTurn={isMyTurn}
+                direction={direction}
+                pending={pending}
+                topDisplay={topDisplay}
+                forcedSuit={forcedSuit}
+                deckCount={deck.length}
+                discardCount={discard.length}
+              />
 
-          {/* LobbyControls already includes its own Panel */}
-          {roundStatus === "lobby" ? (
-            <LobbyControls
-              me={me}
-              dealerSeat={dealerSeat}
-              allReady={allReady}
-              readyCount={readyCount}
-              playerCount={players.length}
-              onToggleReady={actions.toggleReady}
-              onStartRound={startRound}
+              {state.lastEvent ? (
+                <div className="mt-3 text-sm text-white/80">
+                  <span className="text-white/60">Event:</span>{" "}
+                  <span className="font-medium">{state.lastEvent}</span>
+                </div>
+              ) : null}
+            </Panel>
+
+            <Panel className="p-5">
+              <Scoreboard players={players} roundWins={roundWins} />
+            </Panel>
+
+            <PublicTable
               players={players}
-            />
-          ) : null}
-
-          {/* PreplayPanel already includes its own Panel */}
-          {roundStatus === "preplay" ? (
-            <PreplayPanel
-              me={me}
-              myHand={myHand}
-              mySeat={mySeat}
-              mySevens={mySevens}
-              allAliveSevensResolved={allAliveSevensResolved}
-              dealerSeat={dealerSeat}
-              onOpenSuitModalForSevens={() => openSuitModal({ kind: "preplaySevens" })}
-              onBeginFirstTurn={beginFirstTurn}
-            />
-          ) : null}
-
-          {/* PlayerHand already includes its own Panel */}
-          {roundStatus === "playing" ? (
-            <PlayerHand
-              me={me}
-              isMyTurn={isMyTurn}
-              myHand={myHand}
-              myPlayable={myPlayable}
+              hands={hands}
+              turnSeat={turnSeat}
+              roundStatus={roundStatus}
               pending={pending}
-              onPlayCard={(c) => actions.playCard(c)}
-              onPlayEight={(c) => openSuitModal({ kind: "play8", card: c })}
-              onDraw={() => actions.drawCards()}
-              reduceMotion={reduceMotion}
-              bigTap={bigTap}
+              topDisplay={topDisplay}
+              topCard={topCard}
+              forcedSuit={forcedSuit}
+              direction={direction}
+              dealerSeat={dealerSeat}
+              myId={myId}
             />
-          ) : null}
 
-          {/* Match finished */}
-          {roundStatus === "finished_match" ? (
-            <Panel className="p-5">
-              <div className="text-sm text-white/80">
-                <span className="font-semibold">Match finished!</span> Refresh / create a new room to start a new match.
-              </div>
-            </Panel>
-          ) : null}
+            {/* Round finished */}
+            {roundStatus === "finished_round" ? (
+              <Panel className="p-5">
+                <div className="text-sm text-white/80">
+                  <span className="font-semibold">Round finished.</span>{" "}
+                  {winnerName ? `Winner: ${winnerName}` : "It was a draw."}
+                </div>
+                <div className="mt-3">
+                  <Button onClick={continueToNextRound}>Continue / Next Round</Button>
+                </div>
+              </Panel>
+            ) : null}
 
-          {/* --- Suit chooser modal --- */}
-          <SuitModal
-            open={suitModalOpen}
-            value={suitModalValue}
-            onChange={setSuitModalValue}
-            onClose={closeSuitModal}
-            onConfirm={async (suit) => {
-              setChooseSuit(suit);
+            {/* Lobby */}
+            {roundStatus === "lobby" ? (
+              <LobbyControls
+                me={me}
+                dealerSeat={dealerSeat}
+                allReady={allReady}
+                readyCount={readyCount}
+                playerCount={players.length}
+                onToggleReady={actions.toggleReady}
+                onStartRound={startRound}
+                players={players}
+              />
+            ) : null}
 
-              const action = pendingSuitAction;
-              closeSuitModal();
+            {/* Preplay */}
+            {roundStatus === "preplay" ? (
+              <PreplayPanel
+                me={me}
+                myHand={myHand}
+                mySeat={mySeat}
+                mySevens={mySevens}
+                allAliveSevensResolved={allAliveSevensResolved}
+                dealerSeat={dealerSeat}
+                onOpenSuitModalForSevens={() => openSuitModal({ kind: "preplaySevens" })}
+                onBeginFirstTurn={beginFirstTurn}
+              />
+            ) : null}
 
-              if (!action) return;
+            {/* Playing */}
+            {roundStatus === "playing" ? (
+              <PlayerHand
+                me={me}
+                isMyTurn={isMyTurn}
+                myHand={myHand}
+                myPlayable={myPlayable}
+                pending={pending}
+                onPlayCard={(c) => actions.playCard(c)}
+                onPlayEight={(c) => openSuitModal({ kind: "play8", card: c })}
+                onDraw={() => actions.drawCards()}
+                reduceMotion={reduceMotion}
+                bigTap={bigTap}
+              />
+            ) : null}
 
-              if (action.kind === "play8") {
-                await actions.playCard(action.card, suit);
-                return;
-              }
+            {/* Match finished */}
+            {roundStatus === "finished_match" ? (
+              <Panel className="p-5">
+                <div className="text-sm text-white/80">
+                  <span className="font-semibold">Match finished!</span> Refresh / create a new room to start a new match.
+                </div>
+              </Panel>
+            ) : null}
 
-              if (action.kind === "preplaySevens") {
-                await preplayResolveMySevens(suit);
-              }
-            }}
-          />
-        </div>
-      ) : null}
+            {/* --- Suit chooser modal --- */}
+            <SuitModal
+              open={suitModalOpen}
+              value={suitModalValue}
+              onChange={setSuitModalValue}
+              onClose={closeSuitModal}
+              onConfirm={async (suit) => {
+                setChooseSuit(suit);
 
-      <Toast message={toast} onClose={() => setToast("")} />
+                const action = pendingSuitAction;
+                closeSuitModal();
+
+                if (!action) return;
+
+                if (action.kind === "play8") {
+                  await actions.playCard(action.card, suit);
+                  return;
+                }
+
+                if (action.kind === "preplaySevens") {
+                  await preplayResolveMySevens(suit);
+                }
+              }}
+            />
+          </div>
+        ) : null}
+
+        <Toast message={toast} onClose={() => setToast("")} />
+      </div>
     </div>
   );
 }
