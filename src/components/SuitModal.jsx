@@ -1,81 +1,83 @@
-import { Button, Panel } from "../ui/ui.jsx";
+// src/components/SuitModal.jsx
+import { useEffect } from "react";
+import { Button } from "../ui/ui.jsx";
 
 const SUITS = [
-  { key: "S", label: "Spades", symbol: "♠", color: "#ffffff" },
-  { key: "H", label: "Hearts", symbol: "♥", color: "#fb7185" },
-  { key: "D", label: "Diamonds", symbol: "♦", color: "#fb7185" },
-  { key: "C", label: "Clubs", symbol: "♣", color: "#ffffff" },
+  { key: "S", label: "Spades ♠" },
+  { key: "H", label: "Hearts ♥" },
+  { key: "D", label: "Diamonds ♦" },
+  { key: "C", label: "Clubs ♣" },
 ];
 
-export default function SuitModal({ open, value, onChange, onClose, onConfirm }) {
+export default function SuitModal({ open, onClose, onChoose }) {
+  // Escape to close
+  useEffect(() => {
+    if (!open) return;
+
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
-      <button
-        className="absolute inset-0 bg-black/70"
-        onClick={onClose}
-        aria-label="Close modal"
-      />
-
-      <Panel className="relative w-full max-w-2xl p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-2xl font-semibold">Choose a suit</div>
-            <div className="mt-1 text-sm text-white/70">
-              Your 8 sets the forced suit for the next play.
-            </div>
-          </div>
-
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4"
+      style={{
+        // Helps ensure the overlay respects iOS safe areas a bit better
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)",
+      }}
+      onMouseDown={(e) => {
+        // click outside closes
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      onTouchStart={(e) => {
+        // tap outside closes (mobile)
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl"
+        style={{
+          // Critical: pushes modal content above your docked hand area on iPhone
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)",
+        }}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <div className="text-base font-semibold">Choose a suit</div>
           <button
-            onClick={onClose}
-            className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white/80 hover:bg-white/10"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-1 text-sm opacity-90"
+            onClick={() => onClose?.()}
             aria-label="Close"
-            title="Close"
           >
             ✕
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {SUITS.map((s) => {
-            const selected = value === s.key;
-            return (
-              <button
+        <div className="max-h-[70vh] overflow-auto px-4 py-4">
+          <div className="grid grid-cols-2 gap-3">
+            {SUITS.map((s) => (
+              <Button
                 key={s.key}
-                onClick={() => onChange(s.key)}
-                className={[
-                  "rounded-3xl border px-4 py-6 text-center transition",
-                  "bg-white/5 hover:bg-white/10",
-                  selected ? "border-emerald-300/70 ring-4 ring-emerald-300/40" : "border-white/10",
-                ].join(" ")}
-                aria-label={s.label}
+                onClick={() => onChoose?.(s.key)}
+                className="h-12 rounded-2xl"
               >
-                <div
-                  className="text-5xl font-black"
-                  style={{
-                    color: s.color,
-                    textShadow: "0 2px 10px rgba(0,0,0,0.45)",
-                  }}
-                >
-                  {s.symbol}
-                </div>
-                <div className="mt-2 text-sm text-white/75">{s.label}</div>
-              </button>
-            );
-          })}
-        </div>
+                {s.label}
+              </Button>
+            ))}
+          </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:items-center">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => onConfirm(value)}>
-            Confirm {SUITS.find((s) => s.key === value)?.symbol ?? ""}
-          </Button>
+          <div className="mt-4">
+            <Button variant="secondary" onClick={() => onClose?.()} className="w-full">
+              Cancel
+            </Button>
+          </div>
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }

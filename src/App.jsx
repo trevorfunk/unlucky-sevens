@@ -10,10 +10,10 @@ import SuitModal from "./components/SuitModal";
 import SettingsPanel from "./components/SettingsPanel";
 
 import { normalizePending, playableCards, normalizeState } from "./game/rules";
+import { makeId } from "./game/makeId";
 
 import { useGameActions } from "./hooks/useGameActions";
 import { useGameRoom } from "./hooks/useGameRoom";
-import { useRoundManager } from "./hooks/useRoundManager";
 
 import { Button, Badge } from "./ui/ui.jsx";
 
@@ -34,10 +34,11 @@ export default function App() {
 
   const players = Array.isArray(state?.players) ? state.players : [];
 
+  // Stable client id (Safari-safe)
   const myId = useMemo(() => {
     let id = localStorage.getItem("unlucky_id");
     if (!id) {
-      id = crypto.randomUUID();
+      id = makeId();
       localStorage.setItem("unlucky_id", id);
     }
     return id;
@@ -52,22 +53,17 @@ export default function App() {
   const forcedSuit = state?.forcedSuit ?? null;
   const pending = normalizePending(state?.pending);
 
-  // Hands are keyed by SEAT (0..6)
+  // Hands are keyed by seat as strings ("0", "1", ...)
   const hands = normalizeState(state?.hands || {});
-  const myHand = Array.isArray(hands[mySeat]) ? hands[mySeat] : [];
+  const myHand = Array.isArray(hands[String(mySeat)]) ? hands[String(mySeat)] : [];
 
   const roundStatus = state?.roundStatus ?? "lobby";
   const turnSeat = state?.turnSeat ?? null;
 
   // Suit modal
   const [suitModalOpen, setSuitModalOpen] = useState(false);
-
-  function openSuitModal() {
-    setSuitModalOpen(true);
-  }
-  function closeSuitModal() {
-    setSuitModalOpen(false);
-  }
+  const openSuitModal = () => setSuitModalOpen(true);
+  const closeSuitModal = () => setSuitModalOpen(false);
 
   const actions = useGameActions({
     name,
@@ -90,15 +86,6 @@ export default function App() {
     setStatusMsg,
   });
 
-  const { preplayResolveMySevens, continueToNextRound, startPlayingAfterPreplay } = useRoundManager({
-    state,
-    me,
-    players,
-    dealerSeat,
-    actions,
-    setStatusMsg,
-  });
-
   const playable = useMemo(() => {
     if (!topCard) return [];
     return playableCards(myHand, topCard, forcedSuit, pending);
@@ -117,7 +104,7 @@ export default function App() {
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="text-lg font-semibold">Unlucky Sevens</div>
-            {roomCode ? <Badge>Room {roomCode.toUpperCase()}</Badge> : null}
+            {roomCode ? <Badge>Room {String(roomCode).toUpperCase()}</Badge> : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -157,7 +144,7 @@ export default function App() {
                   <input
                     className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 uppercase outline-none"
                     value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setRoomCode(String(e.target.value || "").toUpperCase())}
                     placeholder="ABCD"
                   />
                 </div>
@@ -216,8 +203,8 @@ export default function App() {
               me={me}
               dealerSeat={dealerSeat}
               myHand={myHand}
-              onResolveSevens={preplayResolveMySevens}
-              onStartPlaying={startPlayingAfterPreplay}
+              onResolveSevens={actions.preplayResolveMySevens}
+              onStartPlaying={actions.startPlayingAfterPreplay}
             />
           </div>
         ) : null}
@@ -252,7 +239,7 @@ export default function App() {
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-sm opacity-80">Round finished</div>
             <div className="mt-2 flex gap-2">
-              <Button onClick={continueToNextRound}>Back to lobby</Button>
+              <Button onClick={actions.continueToNextRound}>Back to lobby</Button>
             </div>
           </div>
         ) : null}

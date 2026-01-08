@@ -10,6 +10,8 @@ import {
   resolveAllSevensManual,
   canCoverSevens,
 } from "../game/rules";
+import { makeId } from "../game/makeId";
+
 
 function reshuffleIfNeeded(currDeck, currDiscard, currTop) {
   if (currDeck.length > 0) return { deck: currDeck, discard: currDiscard, topCard: currTop };
@@ -55,15 +57,16 @@ export function useGameActions({
       .eq("code", code)
       .select("*")
       .single();
-
+  
     if (error) {
-      setStatusMsg?.(error.message || "Failed to save state.");
+      setStatusMsg?.(error.message || "Failed to save game state.");
       return null;
     }
-
+  
     setGameRow?.(data);
     return data;
   }
+  
 
   function requireMe() {
     if (!me) {
@@ -107,7 +110,7 @@ export function useGameActions({
         roundStatus: "lobby",
         players: [
           {
-            id: crypto.randomUUID(),
+            id: myId,
             name: playerName,
             seat: 0,
             ready: false,
@@ -169,7 +172,7 @@ export function useGameActions({
     while (used.has(seat) && seat < 7) seat++;
 
     const newPlayer = {
-      id: crypto.randomUUID(),
+      id: myId,
       name: playerName,
       seat,
       ready: false,
@@ -217,74 +220,89 @@ export function useGameActions({
   }
 
   // ✅ FIXED: beginRound now SAVES hands into state
-  async function beginRound() {
-    setStatusMsg("");
-    const code = roomCode.trim().toUpperCase();
-    if (!code) return setStatusMsg("No room code.");
-    if (!me) return setStatusMsg("Join first.");
+// ✅ FIXED: beginRound uses latest row state, safe room code, and string seat keys
+async function beginRound() {
+  setStatusMsg("");
 
-    const isDealer = me.seat === dealerSeat;
-    if (!isDealer) return setStatusMsg("Only the dealer can start the round.");
+  if (!code) return setStatusMsg("No room code.");
+  if (!me) return setStatusMsg("Join first.");
 
-    if (players.length < 2) return setStatusMsg("Need at least 2 players.");
-    if (!players.every((p) => p.ready)) return setStatusMsg("All players must be ready.");
+  // Always refresh before dealing (prevents stale state issues)
+  const latest = await refreshRow();
+  if (!latest) return setStatusMsg("Could not refresh room state.");
 
-    // Determine dealer for this round (use roundResult.nextDealerSeat if present)
-    const nextDealerSeat = state?.roundResult?.nextDealerSeat ?? dealerSeat;
+  const latestState = normalizeState(latest.state);
+  const latestPlayers = Array.isArray(latestState.players) ? latestState.players : [];
+  const latestDealerSeat = latestState?.dealerSeat ?? dealerSeat;
 
-    // Reset players for the new round
-    const nextPlayers = players.map((p) => ({
-      ...p,
-      alive: true,
-      ready: false,
-    }));
+  const latestMe = latestPlayers.find((p) => p.id === myId) || me;
 
-    // Fresh deck
-    let d = shuffle(makeDeck());
+  const isDealer = latestMe.seat === latestDealerSeat;
+  if (!isDealer) return setStatusMsg("Only the dealer can start the round.");
 
-    // Deal cards (Crazy-8 style: 7 cards for 2 players, otherwise 5)
-    const handSize = nextPlayers.length === 2 ? 7 : 5;
-    const nextHands = {};
-    for (const p of nextPlayers) {
-      nextHands[p.seat] = d.splice(0, handSize);
-    }
+  if (latestPlayers.length < 2) return setStatusMsg("Need at least 2 players.");
+  if (!latestPlayers.every((p) => p.ready)) return setStatusMsg("All players must be ready.");
 
-    // Flip a starting top card
-    const top = d.shift() || null;
-    const nextDiscard = top ? [top] : [];
+  // Determine dealer for this round (use roundResult.nextDealerSeat if present)
+  const nextDealerSeat = latestState?.roundResult?.nextDealerSeat ?? latestDealerSeat;
 
-    // If any player cannot cover their sevens (needs >= sevens number of 8s), they are out for the round.
-    const adjustedPlayers = nextPlayers.map((p) => {
-      const h = nextHands[p.seat] || [];
-      if (!canCoverSevens(h)) return { ...p, alive: false };
-      return p;
-    });
+  // Reset players for the new round
+  const nextPlayers = latestPlayers.map((p) => ({
+    ...p,
+    alive: true,
+    ready: false,
+  }));
 
-    // ✅ NEW: Clear hands for players who are OUT this round
-    const adjustedHands = {};
-    for (const p of adjustedPlayers) {
-      adjustedHands[p.seat] = p.alive ? (nextHands[p.seat] || []) : [];
-    }
+  // Fresh deck
+  let d = shuffle(makeDeck());
 
-    await saveState({
-      round: (state?.round ?? 0) + 1,
-      roundStatus: "preplay",
-      players: adjustedPlayers,
-      hands: adjustedHands, // ✅ THIS is what fixes “no cards in hand / no preplay”
-      dealerSeat: nextDealerSeat,
-      direction: 1,
-      deck: d,
-      discard: nextDiscard,
-      topCard: top,
-      forcedSuit: null,
-      pending: { count: 0, type: null },
-      turnSeat: null,
-      firstTurnSeat: null,
-      turnStartedAt: null,
-      roundResult: null,
-      lastEvent: `Round ${(state?.round ?? 0) + 1} dealt. Resolve sevens, then dealer starts.`,
-    });
+  // Deal cards: 7 cards for 2 players, otherwise 5
+  const handSize = nextPlayers.length === 2 ? 7 : 5;
+  const nextHands = {};
+  for (const p of nextPlayers) {
+    nextHands[String(p.seat)] = d.splice(0, handSize);
   }
+
+  // Flip a starting top card
+  const top = d.shift() || null;
+  const nextDiscard = top ? [top] : [];
+
+  // If any player cannot cover their sevens, they are out for the round
+  const adjustedPlayers = nextPlayers.map((p) => {
+    const h = nextHands[String(p.seat)] || [];
+    if (!canCoverSevens(h)) return { ...p, alive: false };
+    return p;
+  });
+
+  // Clear hands for players who are OUT this round
+  const adjustedHands = {};
+  for (const p of adjustedPlayers) {
+    adjustedHands[String(p.seat)] = p.alive ? (nextHands[String(p.seat)] || []) : [];
+  }
+
+  const nextRound = (latestState?.round ?? 0) + 1;
+
+  await saveState({
+    ...latestState,
+    round: nextRound,
+    roundStatus: "preplay",
+    players: adjustedPlayers,
+    hands: adjustedHands,
+    dealerSeat: nextDealerSeat,
+    direction: 1,
+    deck: d,
+    discard: nextDiscard,
+    topCard: top,
+    forcedSuit: null,
+    pending: { count: 0, type: null },
+    turnSeat: null,
+    firstTurnSeat: null,
+    turnStartedAt: null,
+    roundResult: null,
+    lastEvent: `Round ${nextRound} dealt. Resolve sevens, then dealer starts.`,
+  });
+}
+
 
   async function preplayResolveMySevens() {
     setStatusMsg("");
@@ -499,15 +517,28 @@ export function useGameActions({
     setStatusMsg("");
     if (!code) return setStatusMsg("No room code.");
     if (!requireMe()) return;
-
-    if (state?.roundStatus !== "preplay") return setStatusMsg("Not in preplay.");
-    if (me.seat !== dealerSeat) return setStatusMsg("Only dealer can start after preplay.");
-
-    const aliveSeats = players.filter((p) => p.alive).map((p) => p.seat);
-    const firstTurnSeat = nextAliveSeat(dealerSeat, 1, 0, aliveSeats);
-
+  
+    // Refresh first to avoid stale players/alive flags
+    const latest = await refreshRow();
+    if (!latest) return setStatusMsg("Could not refresh room state.");
+  
+    const latestState = normalizeState(latest.state);
+    if (latestState?.roundStatus !== "preplay") return setStatusMsg("Not in preplay.");
+  
+    const latestPlayers = Array.isArray(latestState.players) ? latestState.players : [];
+    const latestDealerSeat = latestState?.dealerSeat ?? dealerSeat;
+  
+    // Only dealer can start after preplay
+    const latestMe = latestPlayers.find((p) => p.id === myId) || me;
+    if (latestMe.seat !== latestDealerSeat) return setStatusMsg("Only dealer can start after preplay.");
+  
+    const aliveSeats = latestPlayers.filter((p) => p.alive).map((p) => p.seat);
+    if (aliveSeats.length < 2) return setStatusMsg("Not enough alive players to start.");
+  
+    const firstTurnSeat = nextAliveSeat(latestDealerSeat, 1, 0, aliveSeats);
+  
     await saveState({
-      ...state,
+      ...latestState,
       roundStatus: "playing",
       direction: 1,
       pending: { count: 0, type: null },
@@ -518,6 +549,7 @@ export function useGameActions({
       lastEvent: `Dealer started play. First turn: seat ${firstTurnSeat}.`,
     });
   }
+  
 
   return {
     createRoom,
